@@ -54,10 +54,15 @@ class LightGBMBooster(val model: String) extends Serializable {
     val numCols_int32_tPtr = lightgbmlib.int_to_int32_t_ptr(numColsIntPtr)
     val scoredDataOutPtr = lightgbmlib.new_doubleArray(numRows)
     val datasetParams = "max_bin=255"
-    LightGBMUtils.validate(lightgbmlib.LGBM_BoosterPredictForMat(boosterPtr, dataPtr, data64bitType,
+    LightGBMUtils.validate(lightgbmlib.LGBM_BoosterPredictForMat(boosterPtr, dataPtr._1, data64bitType,
       numRows_int32_tPtr, numCols_int32_tPtr, isRowMajor, lightgbmlibConstants.C_API_PREDICT_RAW_SCORE,
       -1, datasetParams, scoredDataLength_int64_tPtr, scoredDataOutPtr), "Booster Predict")
-    lightgbmlib.doubleArray_getitem(scoredDataOutPtr, 0)
+    // Delete the input row
+    lightgbmlib.delete_doubleArray(dataPtr._2)
+    val rawPrediction = lightgbmlib.doubleArray_getitem(scoredDataOutPtr, 0)
+    // Delete the output scored row
+    lightgbmlib.delete_doubleArray(scoredDataOutPtr)
+    rawPrediction
   }
 
   protected def getModel(): SWIGTYPE_p_void = {

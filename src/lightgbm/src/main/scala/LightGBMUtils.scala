@@ -3,7 +3,7 @@
 
 package com.microsoft.ml.spark
 
-import com.microsoft.ml.lightgbm.{SWIGTYPE_p_void, lightgbmlib, lightgbmlibConstants}
+import com.microsoft.ml.lightgbm.{SWIGTYPE_p_double, SWIGTYPE_p_void, lightgbmlib, lightgbmlibConstants}
 import org.apache.commons.codec.StringEncoder
 import org.apache.spark.TaskContext
 import org.apache.spark.ml.PipelineModel
@@ -76,13 +76,13 @@ object LightGBMUtils {
     (nodes, nodes.split(",").length)
   }
 
-  def generateData(numRows: Int, rowsAsDoubleArray: Array[Array[Double]]): SWIGTYPE_p_void = {
+  def generateData(numRows: Int, rowsAsDoubleArray: Array[Array[Double]]): (SWIGTYPE_p_void, SWIGTYPE_p_double) = {
     val numCols = rowsAsDoubleArray.head.length
     val data = lightgbmlib.new_doubleArray(numCols * numRows)
     rowsAsDoubleArray.zipWithIndex.foreach(ri =>
       ri._1.zipWithIndex.foreach(value =>
         lightgbmlib.doubleArray_setitem(data, value._2 + (ri._2 * numCols), value._1)))
-    lightgbmlib.double_to_voidp_ptr(data)
+    (lightgbmlib.double_to_voidp_ptr(data), data)
   }
 
   def generateDataset(numRows: Int, rowsAsDoubleArray: Array[Array[Double]]): SWIGTYPE_p_void = {
@@ -97,11 +97,12 @@ object LightGBMUtils {
     val datasetOutPtr = lightgbmlib.voidpp_handle()
     val datasetParams = "max_bin=255 is_pre_partition=True"
     val data64bitType = lightgbmlibConstants.C_API_DTYPE_FLOAT64
-    val dataAsVoidPtr = generateData(numRows, rowsAsDoubleArray)
+    val data = generateData(numRows, rowsAsDoubleArray)
 
     // Generate the dataset for features
-    LightGBMUtils.validate(lightgbmlib.LGBM_DatasetCreateFromMat(dataAsVoidPtr, data64bitType,
+    LightGBMUtils.validate(lightgbmlib.LGBM_DatasetCreateFromMat(data._1, data64bitType,
       numRows_int32_tPtr, numCols_int32_tPtr, isRowMajor, datasetParams, null, datasetOutPtr), "Dataset create")
+    lightgbmlib.delete_doubleArray(data._2)
     lightgbmlib.voidpp_value(datasetOutPtr)
   }
 }

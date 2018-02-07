@@ -38,6 +38,8 @@ private object TrainUtils extends java.io.Serializable {
     val data32bitType = lightgbmlibConstants.C_API_DTYPE_FLOAT32
     LightGBMUtils.validate(
       lightgbmlib.LGBM_DatasetSetField(datasetPtr, "label", labelAsVoidPtr, numRows, data32bitType), "DatasetSetField")
+    // Free label column
+    lightgbmlib.delete_floatArray(labelColArray)
 
     // Create the booster
     val boosterOutPtr = lightgbmlib.voidpp_handle()
@@ -69,6 +71,10 @@ private object TrainUtils extends java.io.Serializable {
         lightgbmlib.LGBM_BoosterSaveModelToStringSWIG(boosterPtr, -1, bufferOutLengthPtr, bufferOutLengthPtr)
       } else tempM
     log.info("Buffer output length: " + bufferOutLength)
+    // Free booster
+    LightGBMUtils.validate(lightgbmlib.LGBM_BoosterFree(boosterPtr), "Finalize Booster")
+    // Free dataset
+    LightGBMUtils.validate(lightgbmlib.LGBM_DatasetFree(datasetPtr), "Finalize Dataset")
     // Finalize network when done
     LightGBMUtils.validate(lightgbmlib.LGBM_NetworkFree(), "Finalize network")
     List[LightGBMBooster](new LightGBMBooster(model)).toIterator
